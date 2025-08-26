@@ -6,16 +6,20 @@ export const getALLCharacters = async ({
   limit = 10,
   name,
 }: {
-  page: number;
+  page?: number;
   limit?: number;
   name?: string;
 }): Promise<CharactersResponse> => {
   try {
-    const params = {
-      page: String(page),
-      limit: String(limit),
-      name: String(name),
-    };
+    const params: Record<string, string> = {};
+
+    if (name && name.trim() !== "") {
+      params.name = name;
+    } else {
+      params.page = String(page);
+      params.limit = String(limit);
+    }
+
     const response = await fetch(
       `${URL_BASE}/characters?${new URLSearchParams(params)}`
     );

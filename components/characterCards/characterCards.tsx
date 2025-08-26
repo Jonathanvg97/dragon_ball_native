@@ -7,36 +7,66 @@ import { ActivityIndicator, ListRenderItem, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CharacterCardStyles } from "./characterCardStyles";
 import SkeletonCharacterCard from "./skeletonCharacterCard";
+
 export const CharacterCards = () => {
-  //Hooks
   const { getCharacters, isLoading } = useCharacters();
   const insets = useSafeAreaInsets();
-  //Local states
+
   const [characters, setCharacters] = useState<Character[]>([]);
   const [page, setPage] = useState<number>(1);
   const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [hasMore, setHasMore] = useState<boolean>(true);
 
-  const fetchCharacters = useCallback(async () => {
-    if (isFetchingMore || !hasMore) return;
+  const fetchCharacters = useCallback(
+    async (reset = false) => {
+      // Si ya está cargando o no hay más y no es reset, no hacemos nada
+      // Si hay búsqueda y no es reset, tampoco hacemos scroll infinito
+      if (isFetchingMore || (!hasMore && !reset) || (searchQuery && !reset))
+        return;
 
-    setIsFetchingMore(true);
-    const data = await getCharacters({ page, limit: 10, name: searchQuery });
+      setIsFetchingMore(true);
 
-    if (data.items.length > 0) {
-      setCharacters((prev) => [...prev, ...data.items]);
-      setPage((prev) => prev + 1);
-    } else {
-      setHasMore(false);
-    }
+      const currentPage = reset ? 1 : page;
+      const data = await getCharacters({
+        page: currentPage,
+        limit: 10,
+        name: searchQuery || undefined,
+      });
 
-    setIsFetchingMore(false);
-  }, [getCharacters, page, isFetchingMore, hasMore, searchQuery]);
+      if (reset) {
+        setCharacters(data.items || data);
+      } else {
+        setCharacters((prev) => [...prev, ...data.items]);
+      }
+
+      if (!searchQuery) {
+        // Solo actualiza paginación si no hay búsqueda
+        if (data.items.length > 0) {
+          setPage(currentPage + 1);
+          setHasMore(true);
+        } else {
+          setHasMore(false);
+        }
+      } else {
+        // Si es búsqueda, no hay más páginas
+        setHasMore(false);
+      }
+
+      setIsFetchingMore(false);
+    },
+    [getCharacters, page, isFetchingMore, hasMore, searchQuery]
+  );
 
   useEffect(() => {
-    fetchCharacters();
-  }, [fetchCharacters]);
+    fetchCharacters(true);
+  }, []);
+
+  const handleSearch = () => {
+    setPage(1);
+    setHasMore(true);
+    fetchCharacters(true);
+  };
 
   const renderItem: ListRenderItem<Character> = ({ item }) => (
     <CharacterCardStyles.Card activeOpacity={0.4}>
@@ -60,6 +90,7 @@ export const CharacterCards = () => {
         paddingBottom: insets.bottom,
       }}
     >
+      {/* Buscador */}
       <CharacterCardStyles.SearchContainer>
         <CharacterCardStyles.SearchInput
           placeholder="Buscar personaje..."
@@ -67,11 +98,12 @@ export const CharacterCards = () => {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-        <CharacterCardStyles.SearchIcon onPress={() => {}}>
+        <CharacterCardStyles.SearchIcon onPress={handleSearch}>
           <Feather name="search" size={20} color="white" />
         </CharacterCardStyles.SearchIcon>
       </CharacterCardStyles.SearchContainer>
 
+      {/* Lista de personajes */}
       {characters?.length === 0 && isLoading ? (
         <SkeletonCharacterCard count={3} />
       ) : (
@@ -80,7 +112,7 @@ export const CharacterCards = () => {
           keyExtractor={(_, index) => index.toString()}
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
-          onEndReached={fetchCharacters}
+          onEndReached={() => fetchCharacters()} // Scroll infinito solo si no hay búsqueda
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             isFetchingMore ? (

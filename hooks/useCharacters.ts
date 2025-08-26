@@ -26,6 +26,7 @@ export const useCharacters = () => {
           limit,
           name,
         });
+
         return response;
       } catch (error) {
         console.error("Error en useCharacters.getCharacters:", error);
