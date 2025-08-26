@@ -83,6 +83,12 @@ export const CharacterCards = () => {
     </CharacterCardStyles.Card>
   );
 
+  useEffect(() => {
+    if (!searchQuery || searchQuery === "") {
+      fetchCharacters(true);
+    }
+  }, [searchQuery]);
+
   return (
     <View
       style={{
